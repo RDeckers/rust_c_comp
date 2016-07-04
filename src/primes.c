@@ -10,7 +10,7 @@ uint32_t usqrt(uint32_t x){ //fails on x= UINT_MAX, gives 0.
   return cur;
 }
 
-uint32_t* generate_primes_c_unsafe(uint32_t * primes, uint32_t max_n_primes){
+uint32_t* generate_primes_c_unsafe(uint32_t *restrict primes, uint32_t max_n_primes){
   if(!primes){
     return NULL;
   }

@@ -1,6 +1,5 @@
 #![feature(test)]
 #![feature(core_intrinsics)]
-#![feature(box_syntax)]
 #[cfg(test)]
 extern crate test;
 extern crate core;
@@ -14,11 +13,12 @@ macro_rules! impl_sqrt_for{
         impl Sqrt for $T{
             #[inline]
             fn sqrt(self) -> Self{
+                use core::intrinsics::unchecked_div;
                 let mut cur  = self;
                 let mut next = (cur+1)/2;
                 while next.wrapping_sub(cur) > 1 {
                     cur = next;
-                    next = (cur + self/cur)/2;
+                    next = (cur + unsafe{unchecked_div(self,cur)})/2; //TODO: is this div always safe?
                 }
                 next
             }
@@ -30,38 +30,61 @@ impl_sqrt_for!(u32);
 
 
 extern "C"{
-    pub fn generate_primes_c_unsafe(buffer : *mut u32, up_to: u32);//Probably better to have rust do the allocation and pass the buffer as an arg.
+    pub fn generate_primes_c_unsafe(buffer : *mut u32, up_to: u32);
 }
 
+#[no_mangle]
+pub fn fill_primes_rs(primes : &mut [u32]){
+    use core::intrinsics::unchecked_rem;
+    let prime_capacity = primes.len();
+    let seed_primes = [2, 3, 5 , 7, 11, 13, 17, 19, 23, 29];
+    let n_seed_primes = seed_primes.len();
+    if prime_capacity < n_seed_primes{
+        for u in 0..prime_capacity{
+            unsafe{*primes.get_unchecked_mut(u) = *seed_primes.get_unchecked(u)};
+        }
+    }else{
+        for u in 0..n_seed_primes{
+            unsafe{*primes.get_unchecked_mut(u) = *seed_primes.get_unchecked(u)};
+        }
+        let mut prime_count = n_seed_primes;
+        let mut test_prime = *unsafe{primes.get_unchecked(prime_count-1)};
+        let mut step = 2;
+
+        while prime_count < prime_capacity {
+            test_prime += step;
+            step ^= 6;
+            let mut limit = test_prime.sqrt()+1;
+            let mut u = 2;
+            while *unsafe{primes.get_unchecked(u)} < limit{
+                if 0 == unsafe{unchecked_rem(test_prime, *primes.get_unchecked(u))}{
+                    test_prime += step;
+                    step ^= 6;
+                    limit = test_prime.sqrt()+1;
+                    u = 2;
+                    continue;
+                }
+                u+=1;
+            }
+            unsafe{*primes.get_unchecked_mut(prime_count) = test_prime;}
+            prime_count+=1;
+        }
+    }
+}
+
+pub fn generate_primes_rs(up_to: usize) -> Vec<u32>{
+    let mut prime_slice : Vec<u32> = Vec::with_capacity(up_to);
+    unsafe{prime_slice.set_len(up_to);}
+    fill_primes_rs(prime_slice.as_mut_slice());
+    prime_slice
+}
+
+#[no_mangle]
 pub fn generate_primes_c(up_to: usize) -> Vec<u32>{
     let mut prime_slice = Vec::with_capacity(up_to);
     unsafe{
         generate_primes_c_unsafe(prime_slice.as_mut_ptr(), up_to as u32);
         prime_slice.set_len(up_to);
-    }
-    prime_slice
-}
-
-#[no_mangle]
-pub fn generate_primes_rs(up_to: usize) -> Vec<u32>{
-    use core::intrinsics::unchecked_rem;
-    let mut prime_slice = Vec::with_capacity(up_to);
-    prime_slice.extend([2, 3, 5 , 7, 11, 13, 17, 19, 23, 29].iter().cloned());
-    let mut step : u32 = 2;
-    let mut prime_count = prime_slice.len();
-    let mut test_prime = prime_slice[prime_count-1];
-    unsafe{prime_slice.set_len(up_to);}
-    while prime_count < up_to{
-        test_prime += step;
-        step ^= 6;
-        let mut limit = test_prime.sqrt()+1;
-         while prime_slice[2..].iter().take_while(|&p| *p < limit).any(|&p| unsafe{unchecked_rem(test_prime, p)} == 0){
-            test_prime += step;
-            step ^= 6;
-            limit = test_prime.sqrt()+1;
-        }
-        unsafe{*prime_slice.get_unchecked_mut(prime_count) = test_prime;}
-        prime_count += 1;
     }
     prime_slice
 }
@@ -86,7 +109,7 @@ mod tests {
     #[bench]
     fn rust(b: &mut Bencher) {
         b.iter(||{
-            let n = black_box(15_000);
+            let n = black_box(50_000);
             generate_primes_rs(n)
         });
     }
@@ -94,7 +117,7 @@ mod tests {
     #[bench]
     fn c(b: &mut Bencher) {
         b.iter(||{
-            let n = black_box(15_000);
+            let n = black_box(50_000);
             generate_primes_c(n)
         });
     }
