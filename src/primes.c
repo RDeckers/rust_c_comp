@@ -29,14 +29,19 @@ uint32_t* generate_primes_c_unsafe(uint32_t *restrict primes, uint32_t max_n_pri
   uint32_t step = 2;
   uint32_t test_prime = primes[prime_count-1];
   while(prime_count < max_n_primes){
-    TEST_NEXT_PRIME:
     test_prime += step;
     step ^= 6;
     uint32_t limit = usqrt(test_prime)+1;
-    for(unsigned u = 2; primes[u] < limit; u++){
+    unsigned u = 2;
+    while(primes[u] < limit){
       if(0 == test_prime % primes[u]){
-        goto TEST_NEXT_PRIME;
+        test_prime += step;
+        step ^= 6;
+        limit = usqrt(test_prime)+1;
+        u = 2;
+        continue;
       }
+      u+=1;
     }
     primes[prime_count++] = test_prime;
   }
