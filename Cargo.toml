@@ -1,0 +1,10 @@
+[package]
+name = "c_comp"
+version = "0.1.0"
+authors = ["RDeckers <github.com@codingcat.nl>"]
+build = "build.rs"
+
+[dependencies]
+
+[build-dependencies]
+gcc = "*"
