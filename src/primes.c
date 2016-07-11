@@ -26,24 +26,33 @@ uint32_t* generate_primes_c_unsafe(uint32_t *restrict primes, uint32_t max_n_pri
     primes[u] = seed_primes[u];
   }
   size_t prime_count = n_seed_primes;
-  uint32_t step = 2;
-  uint32_t test_prime = primes[prime_count-1];
+  uint32_t test_prime = primes[prime_count-1]+2;
+  uint32_t step = 4;
+  uint32_t limit = 6;
+  uint32_t next_limit_breaker = 36;
+  unsigned u = 2;
   while(prime_count < max_n_primes){
-    test_prime += step;
-    step ^= 6;
-    uint32_t limit = usqrt(test_prime)+1;
-    unsigned u = 2;
     while(primes[u] < limit){
       if(0 == test_prime % primes[u]){
         test_prime += step;
+        if(test_prime >= next_limit_breaker){
+          next_limit_breaker += limit*2+1;
+          limit += 1;
+        }
         step ^= 6;
-        limit = usqrt(test_prime)+1;
         u = 2;
         continue;
       }
       u+=1;
     }
     primes[prime_count++] = test_prime;
+    test_prime += step;
+    if(test_prime >= next_limit_breaker){
+      next_limit_breaker += limit*2+1;
+      limit += 1;
+    }
+    step ^= 6;
+    u = 2;
   }
   return primes;
 }
