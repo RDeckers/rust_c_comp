@@ -53,17 +53,16 @@ pub fn fill_primes_rs(primes : &mut [u32]){
         let mut test_prime = *unsafe{primes.get_unchecked(prime_count-1)}+2; //31
         let mut step = 4;
         let mut limit = 6;//isqrt(31)+1 = 5 +1 = 6
-        let mut steps_till_next_root = 5; //37 is the first x for which ceil(root(x)) > ceil(sqrt(31))
-        let mut steps_made = 0;
+        let mut next_limit_breaker = 36;
+        //let mut steps_till_next_root = 5; //37 is the first x for which ceil(root(x)) > ceil(sqrt(31))
+        //let mut steps_made = 0;
         let mut u = 2;
         while prime_count < prime_capacity {
             while *unsafe{primes.get_unchecked(u)} < limit{
                 if 0 == unsafe{unchecked_rem(test_prime, *primes.get_unchecked(u))}{
                     test_prime += step;
-                    steps_made += step;
-                    if steps_made >= steps_till_next_root{
-                        steps_made -= steps_till_next_root;
-                        steps_till_next_root = limit*2+1;
+                    if test_prime >= next_limit_breaker{
+                        next_limit_breaker += limit*2+1;
                         limit += 1;
                     }
                     step ^= 6;
@@ -75,10 +74,8 @@ pub fn fill_primes_rs(primes : &mut [u32]){
             unsafe{*primes.get_unchecked_mut(prime_count) = test_prime;}
             prime_count+=1;
             test_prime += step;
-            steps_made += step;
-            if steps_made >= steps_till_next_root{
-                steps_made -= steps_till_next_root;
-                steps_till_next_root = limit*2+1;
+            if test_prime >= next_limit_breaker{
+                next_limit_breaker += limit*2+1;
                 limit += 1;
             }
             step ^= 6;
